@@ -53,7 +53,8 @@ function SimulatorWidget(node) {
     $node.find('.stepButton').click(simulator.debugExec);
     $node.find('.gotoButton').click(simulator.gotoAddr);
     $node.find('.notesButton').click(ui.showNotes);
-
+    $node.find('.copy-execution-dump').click(simulator.copyExecutionDump);
+    
     var editor = $node.find('.code');
 
     editor.on('keypress input', simulator.stop);
@@ -1575,6 +1576,8 @@ function SimulatorWidget(node) {
       setRandomByte();
       executeNextInstruction();
 
+      updateExecutionDump();
+
       if ((regPC === 0) || (!codeRunning && !debugging)) {
         stop();
         message("Program end at PC=$" + addr2hex(regPC - 1));
@@ -1644,6 +1647,62 @@ function SimulatorWidget(node) {
       updateMonitor();
     }
 
+    function updateExecutionDump()
+    {
+
+      var html = addr2hex(regPC) + 
+      " " + num2hex(regA) + 
+      " " + num2hex(regX) + 
+      " " + num2hex(regY) + 
+      " " + num2hex(regSP) +
+      " " + // NV-BDIZC 
+      (regP >> 7 & 1) + // N
+      (regP >> 6 & 1) + // V
+    //(regP >> 5 & 1) + // -
+    //(regP >> 4 & 1) + // B
+      (regP >> 3 & 1) + // D
+      (regP >> 2 & 1) + // I
+      (regP >> 1 & 1) + // Z
+      (regP >> 0 & 1) + // C
+      ";\n";
+
+      /*
+      var html = "PC:" + addr2hex(regPC) + 
+                 " A:" + num2hex(regA) + 
+                 " X:" + num2hex(regX) + 
+                 " Y:" + num2hex(regY) + 
+                 " S:" + num2hex(regSP) +
+                 //" NV-BDIZC "+
+                 " N:"+ (regP >> 7 & 1) +
+                 " V:"+ (regP >> 6 & 1) +
+                 //" -:"+ (regP >> 5 & 1) +
+                 //" B:"+ (regP >> 4 & 1) +
+                 " D:"+ (regP >> 3 & 1) +
+                 " I:"+ (regP >> 2 & 1) +
+                 " Z:"+ (regP >> 1 & 1) +
+                 " C:"+ (regP >> 0 & 1) +
+                 ";\n";
+      */
+
+      $node.find('.execution-dump code').append(html);
+    }
+
+    function copyExecutionDump()
+    {
+      console.log("copyExecutionDump ...");
+      var elem = $node.find('.execution-dump code');
+      copyToClipboard(elem);
+    }
+
+    function copyToClipboard(element)
+    {
+      var $temp = $("<input>");
+      $("body").append($temp);
+      $temp.val($(element).text()).select();
+      document.execCommand("copy");
+      $temp.remove();
+    }
+
     // gotoAddr() - Set PC to address (or address of label)
     function gotoAddr() {
       var inp = prompt("Enter address or label", "");
@@ -1707,6 +1766,7 @@ function SimulatorWidget(node) {
       enableDebugger: enableDebugger,
       stopDebugger: stopDebugger,
       debugExec: debugExec,
+      copyExecutionDump: copyExecutionDump,
       gotoAddr: gotoAddr,
       reset: reset,
       stop: stop,
