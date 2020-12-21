@@ -20,6 +20,8 @@ function SimulatorWidget(node) {
   var simulator = Simulator();
   var assembler = Assembler();
 
+  var writeMemoryLog = "";
+
   function initialize() {
     stripText();
     ui.initialize();
@@ -54,6 +56,7 @@ function SimulatorWidget(node) {
     $node.find('.gotoButton').click(simulator.gotoAddr);
     $node.find('.notesButton').click(ui.showNotes);
     $node.find('.copy-execution-dump').click(simulator.copyExecutionDump);
+    $node.find('.copy-compressed-execution-dump').click(simulator.copyCompressedExecutionDump);
     
     var editor = $node.find('.code');
 
@@ -258,6 +261,7 @@ function SimulatorWidget(node) {
     // Poke a byte, don't touch any registers
     function storeByte(addr, value) {
       set(addr, value & 0xff);
+      writeMemoryLog += " M"+addr2hex(addr)+ "=" + num2hex(value & 0xff);
       if ((addr >= 0x200) && (addr <= 0x5ff)) {
         display.updatePixel(addr);
       }
@@ -308,6 +312,13 @@ function SimulatorWidget(node) {
     var debug = false;
     var monitoring = false;
     var executeId;
+
+    var regA_prev = 0;
+    var regX_prev = 0;
+    var regY_prev = 0;
+    var regP_prev = 0;
+    var regPC_prev = 0x600;
+    var regSP_prev = 0xff;
 
     // Set zero and negative processor flags based on result
     function setNVflags(value) {
@@ -1649,22 +1660,40 @@ function SimulatorWidget(node) {
 
     function updateExecutionDump()
     {
-
       var html = addr2hex(regPC) + 
-      " " + num2hex(regA) + 
-      " " + num2hex(regX) + 
-      " " + num2hex(regY) + 
-      " " + num2hex(regSP) +
-      " " + // NV-BDIZC 
-      (regP >> 7 & 1) + // N
-      (regP >> 6 & 1) + // V
-    //(regP >> 5 & 1) + // -
-    //(regP >> 4 & 1) + // B
-      (regP >> 3 & 1) + // D
-      (regP >> 2 & 1) + // I
-      (regP >> 1 & 1) + // Z
-      (regP >> 0 & 1) + // C
+      logHexIfChanged("A", regA,  regA_prev) + 
+      logHexIfChanged("X", regX,  regX_prev) + 
+      logHexIfChanged("Y", regY,  regY_prev) + 
+      logHexIfChanged("S", regSP, regSP_prev) + 
+   // NV-BDIZC 
+      logFlagIfChanged("N", 7) +
+      logFlagIfChanged("V", 6) +
+   // logFlagIfChanged("-", 5) +
+   // logFlagIfChanged("B", 4) +
+      logFlagIfChanged("D", 3) +
+      logFlagIfChanged("I", 2) +
+      logFlagIfChanged("Z", 1) +
+      logFlagIfChanged("C", 0) +
+      writeMemoryLog +
       ";\n";
+
+      /*
+      var html = addr2hex(regPC) + 
+           " " + num2hex(regA) + 
+           " " + num2hex(regX) + 
+           " " + num2hex(regY) + 
+           " " + num2hex(regSP) +
+           " " + // NV-BDIZC 
+           (regP >> 7 & 1) + // N
+           (regP >> 6 & 1) + // V
+         //(regP >> 5 & 1) + // -
+         //(regP >> 4 & 1) + // B
+           (regP >> 3 & 1) + // D
+           (regP >> 2 & 1) + // I
+           (regP >> 1 & 1) + // Z
+           (regP >> 0 & 1) + // C
+           ";\n";
+      */
 
       /*
       var html = "PC:" + addr2hex(regPC) + 
@@ -1684,7 +1713,29 @@ function SimulatorWidget(node) {
                  ";\n";
       */
 
+      writeMemoryLog = "";
+
+      regA_prev = regA;
+      regX_prev = regX;
+      regY_prev = regY;
+      regP_prev = regP;
+      regPC_prev = regPC;
+      regSP_prev = regSP;
+ 
       $node.find('.execution-dump code').append(html);
+    }
+
+    function logHexIfChanged(name, val, prevVal)
+    {
+      return (val === prevVal) ? "" : (" " + name + num2hex(val));
+    }
+
+    function logFlagIfChanged(name, i)
+    {
+      var val     = regP      >> i & 1;
+      var prevVal = regP_prev >> i & 1;
+
+      return (val === prevVal) ? "" : (" " + name + val);
     }
 
     function copyExecutionDump()
@@ -1694,11 +1745,31 @@ function SimulatorWidget(node) {
       copyToClipboard(elem);
     }
 
+    function copyCompressedExecutionDump()
+    {
+      console.log("copyCompressedExecutionDump ...");
+      var elem = $node.find('.execution-dump code');
+      copyCompressedToClipboard(elem);
+    }
+
     function copyToClipboard(element)
     {
       var $temp = $("<input>");
       $("body").append($temp);
       $temp.val($(element).text()).select();
+      document.execCommand("copy");
+      $temp.remove();
+    }
+
+    function copyCompressedToClipboard(element)
+    {
+      var $temp = $("<input>");
+      $("body").append($temp);
+
+      var copy = $(element).text();
+      var compressed = LZString.compressToBase64(copy);
+
+      $temp.val(compressed).select();
       document.execCommand("copy");
       $temp.remove();
     }
@@ -1767,6 +1838,7 @@ function SimulatorWidget(node) {
       stopDebugger: stopDebugger,
       debugExec: debugExec,
       copyExecutionDump: copyExecutionDump,
+      copyCompressedExecutionDump: copyCompressedExecutionDump,
       gotoAddr: gotoAddr,
       reset: reset,
       stop: stop,
