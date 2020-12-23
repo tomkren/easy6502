@@ -250,6 +250,11 @@ function SimulatorWidget(node) {
       return memArray[addr] = val;
     }
 
+    function setAndLog(addr, val) {
+      writeMemoryLog += " M"+addr2hex(addr)+ "=" + num2hex(val);
+      return memArray[addr] = val;
+    }
+
     function get(addr) {
       return memArray[addr];
     }
@@ -260,8 +265,7 @@ function SimulatorWidget(node) {
 
     // Poke a byte, don't touch any registers
     function storeByte(addr, value) {
-      set(addr, value & 0xff);
-      writeMemoryLog += " M"+addr2hex(addr)+ "=" + num2hex(value & 0xff);
+      setAndLog(addr, value & 0xff);
       if ((addr >= 0x200) && (addr <= 0x5ff)) {
         display.updatePixel(addr);
       }
@@ -293,6 +297,7 @@ function SimulatorWidget(node) {
 
     return {
       set: set,
+      setAndLog: setAndLog,
       get: get,
       getWord: getWord,
       storeByte: storeByte,
@@ -1512,7 +1517,7 @@ function SimulatorWidget(node) {
     };
 
     function stackPush(value) {
-      memory.set((regSP & 0xff) + 0x100, value & 0xff);
+      memory.setAndLog((regSP & 0xff) + 0x100, value & 0xff);
       regSP--;
       if (regSP < 0) {
         regSP &= 0xff;
