@@ -1767,6 +1767,7 @@ function SimulatorWidget(node) {
       $("body").append($temp);
 
       var copy = $(element).text();
+      copy = copy.replace(/\n/g, "");
       var compressed = LZString.compressToBase64(copy);
 
       $temp.val(compressed).select();
